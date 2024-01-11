@@ -1,0 +1,5 @@
+/flask/
+/instance/
+/migrations/
+/.git
+__pycache__
