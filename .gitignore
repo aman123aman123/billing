@@ -2,4 +2,4 @@
 /instance/
 /migrations/
 /.git
-__pycache__
+/__pycache__/

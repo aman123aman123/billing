@@ -1,6 +1,8 @@
 # https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html
 
-from models import User
+# https://github.com/jod35/SQLAlchemy-2.0-ORM/blob/main/persisting.py
+
+from models import User, Product, Order
 from main import session
 
 user1 = User(
