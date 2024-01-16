@@ -45,7 +45,9 @@ def generate_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n\r\n')
 
-
+@app.route('/')
+def index():
+    return "Billing App"
 
 @app.route('/video')
 def video():
