@@ -1,23 +1,19 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, Float, Table
+# https://www.youtube.com/playlist?list=PLXmMXHVSvS-BlLA5beNJojJLlpE0PJgCW
+
+from sqlalchemy import Column, ForeignKey, Integer, String, Float, DateTime
 from sqlalchemy.orm import relationship, declarative_base
+from datetime import datetime
 
 Base = declarative_base()
 
-order_products = Table(
-    "order_products",
-    Base.metadata,
-    Column("order_id", ForeignKey("orders.id")),
-    Column("product_id", ForeignKey("products.id")),
-)
-
-class User(Base):
-    __tablename__ = 'users'
+class Customer(Base):
+    __tablename__ = 'customers'
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     address = Column(String, nullable=False)
     phone = Column(Integer, nullable=False)
 
-    order_user = relationship("Order", back_populates="user")
+    orders = relationship("Order", backref="customers")
 
     def __repr__(self) -> str:
         return f"User: {self.name}"
@@ -30,16 +26,21 @@ class Product(Base):
     quantity = Column(Integer, nullable=False)
     barcode = Column(String, nullable=False)
 
-    order_product = relationship("Order", back_populates="")
-
     def __repr__(self) -> str:
         return f"{self.barcode} - {self.productname}"
 
 class Order(Base):
     __tablename__ = 'orders'
     id = Column(Integer, primary_key=True)
+    order_date = Column(DateTime, nullable=False, default=datetime.now())
+    order_total = Column(Integer, nullable=False)
     
-    user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User", back_populates="order_user")
+    customer_id = Column(Integer, ForeignKey("customers.id"))
 
-    order_products = relationship("Child", secondary=order_products)
+class OrderItem(Base):
+    __tablename__ = 'order_items'
+    id = Column(Integer, primary_key=True)
+    order_id = Column(Integer, ForeignKey("orders.id"))
+    product_id = Column(Integer, ForeignKey("products.id"))
+    quantity = Column(Integer, nullable=False)
+    price_per_quantity = Column(Integer, nullable=False)

@@ -1,78 +1,57 @@
-from flask import Flask, request, redirect
-from flask.templating import render_template
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate, migrate
+from flask import Flask, Response
+from pyzbar import pyzbar
+import cv2
+from flask_ngrok import run_with_ngrok
+import numpy as np
 
 app = Flask(__name__)
-app.debug = True
 
-# adding configuration for using a sqlite database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.sqlite3'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+run_with_ngrok(app)
 
-# Creating an SQLAlchemy instance
-db = SQLAlchemy(app)
+camera=cv2.VideoCapture(0)
 
-# Settings for migrations
-migrate = Migrate(app, db)
+def generate_frames():
+    while True:
+        success, frame = camera.read()
+        if not success:
+            break
 
-# Models
-class Profile(db.Model):
-	# Id : Field which stores unique id for every row in 
-	# database table.
-	# first_name: Used to store the first name if the user
-	# last_name: Used to store last name of the user
-	# Age: Used to store the age of the user
-	id = db.Column(db.Integer, primary_key=True)
-	first_name = db.Column(db.String(20), unique=False, nullable=False)
-	last_name = db.Column(db.String(20), unique=False, nullable=False)
-	age = db.Column(db.Integer, nullable=False)
+        # Convert the frame to grayscale for barcode detection
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-	# repr method represents how one object of this datatable
-	# will look like
-	def __repr__(self):
-		return f"Name : {self.first_name}, Age: {self.age}"
+        # Find barcodes in the frame
+        barcodes = pyzbar.decode(gray)
 
-# function to render index page
-@app.route('/')
-def index():
-	profiles = Profile.query.all()
-	return render_template('index.html', profiles=profiles)
+        # Process detected barcodes
+        for barcode in barcodes:
+            # Extract barcode data
+            barcode_data = barcode.data.decode('utf-8')
+            print(barcode_data)
 
-@app.route('/add_data')
-def add_data():
-	return render_template('add_profile.html')
+            # Draw a rectangle around the barcode
+            rect_points = barcode.polygon
+            if len(rect_points) == 4:
+                rect_points = [(p.x, p.y) for p in rect_points]
+                rect_points = [(int(x), int(y)) for x, y in rect_points]
+                cv2.polylines(frame, [np.array(rect_points)], True, (0, 255, 0), 2)
 
-# function to add profiles
-@app.route('/add', methods=["POST"])
-def profile():
-	# In this function we will input data from the 
-	# form page and store it in our database. Remember 
-	# that inside the get the name should exactly be the same 
-	# as that in the html input fields
-	first_name = request.form.get("first_name")
-	last_name = request.form.get("last_name")
-	age = request.form.get("age")
+            # Display the barcode data
+            cv2.putText(frame, barcode_data, (rect_points[0][0], rect_points[0][1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-	# create an object of the Profile class of models and 
-	# store data as a row in our datatable
-	if first_name != '' and last_name != '' and age is not None:
-		p = Profile(first_name=first_name, last_name=last_name, age=age)
-		db.session.add(p)
-		db.session.commit()
-		return redirect('/')
-	else:
-		return redirect('/')
+        # Encode the frame as JPEG
+        _, jpeg = cv2.imencode('.jpg', frame)
+        frame_bytes = jpeg.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n\r\n')
 
-@app.route('/delete/<int:id>')
-def erase(id):
-	
-	# deletes the data on the basis of unique id and 
-	# directs to home page
-	data = Profile.query.get(id)
-	db.session.delete(data)
-	db.session.commit()
-	return redirect('/')
+
+
+@app.route('/video')
+def video():
+    return Response(generate_frames(),mimetype='multipart/x-mixed-replace; boundary=frame')
+  
 
 if __name__ == '__main__':
-	app.run()
+    app.run(debug=True)
+
