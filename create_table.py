@@ -1,6 +1,10 @@
-from models import Base, User
-from connect import engine
+from models import *
 
+from app import app, db
 
-print("CREATING TABLES >>>> ")
-Base.metadata.create_all(bind=engine)
+def main():
+    db.create_all()
+
+if __name__ == '__main__':
+    with app.app_context():
+        main()

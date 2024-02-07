@@ -1,46 +1,45 @@
 # https://www.youtube.com/playlist?list=PLXmMXHVSvS-BlLA5beNJojJLlpE0PJgCW
 
-from sqlalchemy import Column, ForeignKey, Integer, String, Float, DateTime
-from sqlalchemy.orm import relationship, declarative_base
+from app import db
 from datetime import datetime
 
-Base = declarative_base()
+# db = SQLAlchemy()
 
-class Customer(Base):
+class Customer(db.Model):
     __tablename__ = 'customers'
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    address = Column(String, nullable=False)
-    phone = Column(Integer, nullable=False)
-
-    orders = relationship("Order", backref="customers")
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String, nullable=False)
+    address = db.Column(db.String, nullable=False)
+    phone = db.Column(db.Integer, nullable=False)
 
     def __repr__(self) -> str:
         return f"User: {self.name}"
 
-class Product(Base):
+class Product(db.Model):
     __tablename__ = 'products'
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    price = Column(Float, nullable=False)
-    quantity = Column(Integer, nullable=False)
-    barcode = Column(String, nullable=False)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    barcode = db.Column(db.String, nullable=False)
 
     def __repr__(self) -> str:
         return f"{self.barcode} - {self.productname}"
 
-class Order(Base):
+class Order(db.Model):
     __tablename__ = 'orders'
-    id = Column(Integer, primary_key=True)
-    order_date = Column(DateTime, nullable=False, default=datetime.now())
-    order_total = Column(Integer, nullable=False)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    order_date = db.Column(db.DateTime, nullable=False, default=datetime.now())
+    order_total = db.Column(db.Integer, nullable=False)
     
-    customer_id = Column(Integer, ForeignKey("customers.id"))
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"))
 
-class OrderItem(Base):
+class OrderItem(db.Model):
     __tablename__ = 'order_items'
-    id = Column(Integer, primary_key=True)
-    order_id = Column(Integer, ForeignKey("orders.id"))
-    product_id = Column(Integer, ForeignKey("products.id"))
-    quantity = Column(Integer, nullable=False)
-    price_per_quantity = Column(Integer, nullable=False)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    order_id = db.Column(db.Integer, db.ForeignKey("orders.id"))
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"))
+    
+    quantity = db.Column(db.Integer, nullable=False)
+    price_per_quantity = db.Column(db.Integer, nullable=False)
