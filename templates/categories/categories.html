@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block main %}
+
+<form id="form1" >
+  <div class="container mt-5 mb-5">
+    <div class="row">
+      <div class="col-md-8 offset-md-2">
+        <!-- Heading centered -->
+        <h3 class="text-center shadow-sm p-3 mb-3 bg-white rounded text-success">Category Details</h3>
+      </div>
+      <div class="col-md-2 text-right">
+        <!-- Button on the right side -->
+        <a href="/category/add-update" class="btn btn-success">Add Category</a>
+      </div>
+    </div>
+
+  <p id="test" ></p>
+  <table class="table table-striped table-hover text-center">
+      <thead class="table-success">
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">Name</th>
+          <th scope="col">Code</th>
+          <th scope="col">Update/Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for category in categories %}
+            <tr>
+                <td>{{category.id}}</td>
+                <td>{{category.name | title}}</td>
+                <td>{{category.code | upper}}</td>
+                <td>
+                    <div class="btn-group" role="group" aria-label="Handle Categories">
+                        <a href="/category/add-update/{{category.id}}" class="btn btn-primary">Update</a>
+                        <a href="/category/delete/{{category.id}}" class="btn btn-danger">Delete</a>
+                      </div>
+                </td>
+            </tr>
+        {% endfor %}
+      </tbody>
+</table>
+</div>
+</form>
+{% endblock %}
+
+
+
+          

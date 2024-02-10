@@ -1,8 +1,18 @@
-from flask import Flask, Response, render_template, request, make_response, redirect
+from flask import Flask, Response, render_template, request, make_response, redirect, send_file
 from pyzbar import pyzbar
 import cv2
 from flask_ngrok import run_with_ngrok
 import numpy as np
+
+import code128
+
+from barcode import EAN13
+import tempfile, os, random
+
+from flask_cors import CORS
+from barcode import generate
+from barcode.writer import ImageWriter
+from io import BytesIO
 
 import winsound
 
@@ -19,7 +29,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 # db.init_app(app)
 # https://www.perplexity.ai/search/how-to-use-bVdC.G8GTlmoFt3rctfhBw?s=u
-
+CORS(app)
 run_with_ngrok(app)
 
 camera=cv2.VideoCapture(0)
@@ -60,6 +70,7 @@ def generate_frames():
                 yield (b'--frame\r\n'
                     b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n\r\n')
 
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
@@ -88,6 +99,12 @@ class Product(db.Model):
 
     def __repr__(self) -> str:
         return f"{self.barcode} - {self.name}"
+
+class Category(db.Model):
+    __tablename__ = 'category'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String, nullable=False)
+    code = db.Column(db.String, nullable=False)
 
 class Order(db.Model):
     __tablename__ = 'orders'
@@ -147,7 +164,6 @@ def index():
     # print(result)
     return render_template("home.html")
 
-
 @app.route('/products')
 def products():
     products = Product.query.all()
@@ -158,32 +174,34 @@ def products():
 @app.route('/products/add-update/<prod_id>',methods=["POST","GET"])
 def add_update_product(prod_id):
     if request.method=="GET":
+        categories = Category.query.all()
         if prod_id is None:
-            return render_template("products/add-update.html")
+            return render_template("products/add-update.html", categories=categories)
         else:
             product = Product.query.get(prod_id)
-            return render_template("products/add-update.html", product=product, prod_id=prod_id)
+            return render_template("products/add-update.html", product=product, prod_id=prod_id, categories=categories)
     else:
         name=request.form["name"]
         price=request.form["price"]
         quantity=request.form["quantity"]
+        category=request.form["category"]
+        print(category)
         barcode=request.form["barcode"]
         if prod_id is None:
             new_product = Product(name=name, price=price, quantity=quantity, barcode=barcode)
             db.session.add(new_product)
             db.session.commit()
             print(new_product)
-            return make_response({'success': True}, 201)
+            return redirect('/products')
 
         else:
             product = Product.query.get(prod_id)
-
             product.name = name
             product.price = price
             product.quantity = quantity
             product.barcode = barcode
             db.session.commit()
-            print(request.form["name"],prod_id)
+    
             return redirect('/products')
 
 @app.route('/products/delete/<int:prod_id>')
@@ -192,7 +210,68 @@ def delete_product(prod_id):
     db.session.delete(product)
     db.session.commit()
     return redirect('/products')
+ 
+@app.route('/generate_barcode/<barcode_data>')
+def generate_barcode(barcode_data):
+    print(barcode_data)
+    path = 'static/images/barcodes/'
+    
+    code = EAN13(barcode_data)
+    fullCode = code.get_fullcode()
+    print('Code: '+code.get_fullcode())
+    code.save(path+fullCode)
+    svg_file_path = path+fullCode+'.svg'
+    # Read the SVG file
+    with open(svg_file_path, 'r') as f:
+        svg_content = f.read()
+        f.close()
 
+    return svg_content, 200, {'Content-Type': 'image/svg+xml'}
+
+@app.route('/generate/<code>')
+def generate(code):
+    path = 'static/images/barcodes/'
+    code128.image(code).save(f"{path}{code}.png")
+    return redirect('/')
+
+@app.route('/categories')
+def categories():
+    categories = Category.query.all()
+    sorted_categories = sorted(categories, key=lambda x: x.id)
+    return render_template('categories/categories.html', categories=sorted_categories)
+
+
+@app.route('/category/add-update', defaults={'cat_id': None}, methods=["POST","GET"])
+@app.route('/category/add-update/<cat_id>',methods=["POST","GET"])
+def add_update_category(cat_id):
+    if request.method == 'GET':
+        if cat_id is None:
+            return render_template('/categories/add-update.html')
+        else:
+            category = Category.query.get(cat_id)
+            return render_template('/categories/add-update.html', category=category, cat_id=cat_id)
+    else:
+        name = request.form['name']
+        code = request.form['code']
+        if cat_id is None:
+            new_category = Category(name=name, code=code)
+            db.session.add(new_category)
+            db.session.commit()
+            return redirect('/categories')
+        else:
+            category = Category.query.get(cat_id)
+            print(category)
+            category.name = name
+            category.code = code
+            db.session.commit()
+            return redirect('/categories')
+
+@app.route('/category/delete/<int:cat_id>')
+def delete_category(cat_id):
+    category = Category.query.get(cat_id)
+    db.session.delete(category)
+    db.session.commit()
+    return redirect('/categories')
 
 @app.route('/video_feed')
 def video_feed():
@@ -203,9 +282,11 @@ def toggle_camera():
     global camera_on
     camera_on = not camera_on
     return redirect('/')
-             
+                                
 if __name__ == '__main__':
     app.run(debug=True)
+
+
 
 # Category  Product Batch   Quantity
 # VEG       TOM     B224    01
