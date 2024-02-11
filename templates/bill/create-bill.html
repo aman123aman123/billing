@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block main %}
+<img src="{{ url_for('video_feed') }}" width="640" height="480">
+    <br>
+    <form action="{{ url_for('toggle_camera') }}" method="get">
+        <input type="submit" value="Toggle Camera">
+    </form>
+{% endblock %}

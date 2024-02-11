@@ -97,6 +97,8 @@ class Product(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     barcode = db.Column(db.String, nullable=False)
 
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
+
     def __repr__(self) -> str:
         return f"{self.barcode} - {self.name}"
 
@@ -124,8 +126,8 @@ class OrderItem(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     price_per_quantity = db.Column(db.Integer, nullable=False)
 
-# with app.app_context():
-#     db.create_all()
+with app.app_context():
+    db.create_all()
 
 @app.route('/create_user', methods=['POST'])
 def create_user():
@@ -179,7 +181,9 @@ def add_update_product(prod_id):
             return render_template("products/add-update.html", categories=categories)
         else:
             product = Product.query.get(prod_id)
-            return render_template("products/add-update.html", product=product, prod_id=prod_id, categories=categories)
+            category = Category.query.get(product.category_id)
+        
+            return render_template("products/add-update.html", product=product, prod_id=prod_id, categories=categories, cat_code=category.code)
     else:
         name=request.form["name"]
         price=request.form["price"]
@@ -187,19 +191,25 @@ def add_update_product(prod_id):
         category=request.form["category"]
         print(category)
         barcode=request.form["barcode"]
+        selectedCategory = Category.query.filter_by(code=category).first()
+        print(selectedCategory)
         if prod_id is None:
-            new_product = Product(name=name, price=price, quantity=quantity, barcode=barcode)
+            new_product = Product(name=name, price=price, quantity=quantity, barcode=barcode, category_id=selectedCategory.id)
             db.session.add(new_product)
             db.session.commit()
             print(new_product)
+            generate(barcode, category)
+            
             return redirect('/products')
-
         else:
             product = Product.query.get(prod_id)
-            product.name = name
             product.price = price
             product.quantity = quantity
-            product.barcode = barcode
+            if product.category_id != selectedCategory.id or product.name != name:
+                product.name = name
+                product.category_id = selectedCategory.id
+                product.barcode = barcode
+                generate(barcode, category)
             db.session.commit()
     
             return redirect('/products')
@@ -207,39 +217,44 @@ def add_update_product(prod_id):
 @app.route('/products/delete/<int:prod_id>')
 def delete_product(prod_id):
     product = Product.query.get(prod_id)
+    category = Category.query.get(product.category_id)
+    delete(product.barcode, category.code)
     db.session.delete(product)
     db.session.commit()
     return redirect('/products')
- 
-@app.route('/generate_barcode/<barcode_data>')
-def generate_barcode(barcode_data):
-    print(barcode_data)
-    path = 'static/images/barcodes/'
+  
+  
+# Define the path to the static folder
+static_folder = os.path.join(app.root_path, 'static')
+
+def generate(barcode, folder):
+    path = 'images/barcodes/'+folder
+    if not os.path.exists(path):
+        new_folder_path = os.path.join(static_folder, path)
+        os.makedirs(new_folder_path, exist_ok=True)
+    code128.image(barcode).save(f"static/{path}/{barcode}.png")
     
-    code = EAN13(barcode_data)
-    fullCode = code.get_fullcode()
-    print('Code: '+code.get_fullcode())
-    code.save(path+fullCode)
-    svg_file_path = path+fullCode+'.svg'
-    # Read the SVG file
-    with open(svg_file_path, 'r') as f:
-        svg_content = f.read()
-        f.close()
 
-    return svg_content, 200, {'Content-Type': 'image/svg+xml'}
-
-@app.route('/generate/<code>')
-def generate(code):
-    path = 'static/images/barcodes/'
-    code128.image(code).save(f"{path}{code}.png")
-    return redirect('/')
+@app.route('/delete_barcode', methods=['POST'])
+def delete_barcode():
+    data = request.get_json()
+    barcode = data['barcode']
+    category = data['category']
+    delete(barcode, category)
+    return {'message': 'success'}
+    
+def delete(barcode, category):
+    file_path = os.path.join(static_folder, f'images/barcodes/{category}/{barcode}.png')
+    # Check if the file exists
+    if os.path.exists(file_path):
+        # Delete the file
+        os.remove(file_path)
 
 @app.route('/categories')
 def categories():
     categories = Category.query.all()
     sorted_categories = sorted(categories, key=lambda x: x.id)
     return render_template('categories/categories.html', categories=sorted_categories)
-
 
 @app.route('/category/add-update', defaults={'cat_id': None}, methods=["POST","GET"])
 @app.route('/category/add-update/<cat_id>',methods=["POST","GET"])
@@ -282,10 +297,14 @@ def toggle_camera():
     global camera_on
     camera_on = not camera_on
     return redirect('/')
-                                
+
+@app.route('/create-bill')
+def create_bill():
+    return render_template('/bill/create-bill.html')
+                            
+
 if __name__ == '__main__':
     app.run(debug=True)
-
 
 
 # Category  Product Batch   Quantity
