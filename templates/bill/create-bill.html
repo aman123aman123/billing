@@ -5,4 +5,49 @@
     <form action="{{ url_for('toggle_camera') }}" method="get">
         <input type="submit" value="Toggle Camera">
     </form>
+    <br>
+    {% for b in bill %}
+    <p>{{b}}</p>
+    {% endfor %}
+    <!-- Product -->
+    <!-- AvailableQty -->
+    <!-- PricePerQty = Price / Qty -->
+    <!-- Quantity -->
+    <!-- Total = PricePerQty * Quantity -->
+
+    <!-- CustomerName -->
+    <!-- Mobile -->
+    <!-- Area -->
+    <form>
+        <div class="row">
+            <div class="col">
+              <input type="text" class="form-control" placeholder="Product Name" aria-label="Product Name">
+            </div>
+            <div class="col">
+              <input type="text" class="form-control" placeholder="Quantity" aria-label="Quantity">
+            </div>
+          </div>
+    </form>
+    <table class="table table-striped table-hover text-center">
+        <thead class="table-success">
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Name</th>
+            <th scope="col">Quantity</th>
+            <th scope="col">Price</th>
+            <th scope="col">Barcode</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+              <tr>
+                  <td>{{product.id}}</td>
+                  <td>{{product.name}}</td>
+                  <td>{{product.quantity}}</td>
+                  <td>{{product.price}}</td>
+                  <td>{{product.barcode}}</td>
+              </tr>
+          {% endfor %}
+        </tbody>
+  </table>
 {% endblock %}

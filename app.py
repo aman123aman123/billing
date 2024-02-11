@@ -1,4 +1,4 @@
-from flask import Flask, Response, render_template, request, make_response, redirect, send_file
+from flask import Flask, Response, render_template, request, make_response, redirect, session
 from pyzbar import pyzbar
 import cv2
 from flask_ngrok import run_with_ngrok
@@ -32,12 +32,16 @@ db = SQLAlchemy(app)
 CORS(app)
 run_with_ngrok(app)
 
+app.secret_key = 'aman is great'
+
 camera=cv2.VideoCapture(0)
 
 camera_on = False
+bill = set()
 
 def generate_frames():
     global camera_on
+    global bill
     while True:
         success, frame = camera.read()
         if not success:
@@ -57,9 +61,10 @@ def generate_frames():
                     barcode_data = barcode.data.decode('utf-8')
                     if barcode_data:
                         print(barcode_data)
+                        bill.add(barcode_data)
+                        print('session: ', bill)
                         winsound.Beep(750, 500)
                         break
-
                 # if barcodes:
                 #     print(barcodes)
                 #     break
@@ -296,12 +301,17 @@ def video_feed():
 def toggle_camera():
     global camera_on
     camera_on = not camera_on
-    return redirect('/')
+    return redirect('/create-bill')
 
 @app.route('/create-bill')
 def create_bill():
-    return render_template('/bill/create-bill.html')
-                            
+    print('bill', bill)
+    products = []
+    for b in bill:
+        prod = Product.query.filter_by(barcode=b).first()
+        products.append(prod)
+    return render_template('/bill/create-bill.html', bill=bill, products=products)                         
+
 
 if __name__ == '__main__':
     app.run(debug=True)
