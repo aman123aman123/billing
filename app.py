@@ -5,14 +5,8 @@ from flask_ngrok import run_with_ngrok
 import numpy as np
 
 import code128
-
-from barcode import EAN13
-import tempfile, os, random
-
-from flask_cors import CORS
+import os, json
 from barcode import generate
-from barcode.writer import ImageWriter
-from io import BytesIO
 
 import winsound
 
@@ -27,20 +21,19 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-# db.init_app(app)
+# db.init_app(app)  # uncomment this when you run the project for the first time then comment it
 # https://www.perplexity.ai/search/how-to-use-bVdC.G8GTlmoFt3rctfhBw?s=u
-CORS(app)
 run_with_ngrok(app)
 
 app.secret_key = 'aman is great'
 
-camera=cv2.VideoCapture(0)
-
+camera=cv2.VideoCapture(0) 
+  
 camera_on = False
 bill = set()
 
 def generate_frames():
-    global camera_on
+    global camera_on 
     global bill
     while True:
         success, frame = camera.read()
@@ -74,16 +67,7 @@ def generate_frames():
                 frame_bytes = jpeg.tobytes()
                 yield (b'--frame\r\n'
                     b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n\r\n')
-
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(80), unique=True, nullable=False)
-    
-    def __repr__(self):
-        return '<User %r>' % self.name
-
-
+  
 class Customer(db.Model):
     __tablename__ = 'customers'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -107,6 +91,15 @@ class Product(db.Model):
     def __repr__(self) -> str:
         return f"{self.barcode} - {self.name}"
 
+    def serialize(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'price': self.price,
+            'quantity': self.quantity,
+            'barcode': self.barcode,
+        }
+
 class Category(db.Model):
     __tablename__ = 'category'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -118,6 +111,8 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     order_date = db.Column(db.DateTime, nullable=False, default=datetime.now())
     order_total = db.Column(db.Integer, nullable=False)
+    payment_method = db.Column(db.String, nullable=False, default='cash')
+    payment_status = db.Column(db.String, nullable=False, default='pending')
     
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"))
 
@@ -127,48 +122,15 @@ class OrderItem(db.Model):
 
     order_id = db.Column(db.Integer, db.ForeignKey("orders.id"))
     product_id = db.Column(db.Integer, db.ForeignKey("products.id"))
-    
+     
     quantity = db.Column(db.Integer, nullable=False)
     price_per_quantity = db.Column(db.Integer, nullable=False)
 
-with app.app_context():
-    db.create_all()
-
-@app.route('/create_user', methods=['POST'])
-def create_user():
-    data = request.get_json()
-    new_user = User(name=data['name'])
-    db.session.add(new_user)
-    db.session.commit()
-    return make_response({"message": "new user created"}, 201)
-
-@app.route('/user')
-def get_user():
-    users = User.query.all()
-    user_list = [
-        {'id': user.id, 'name': user.name} for user in users
-    ]
-    return render_template('users.html', users=user_list) 
-
-@app.route('/update-user/<int:user_id>', methods=['PUT'])
-def update_user(user_id):
-    user = User.query.get(user_id)
-    data = request.get_json()
-    user.name = data['name']
-    db.session.commit()
-    return make_response({'success': True}, 200)
-
-@app.route('/delete-user/<int:user_id>', methods=['DELETE'])
-def delete_user(user_id):
-    user = User.query.get(user_id)
-    db.session.delete(user)
-    db.session.commit()
-    return make_response({'message': 'deleted'}, 200)
+# with app.app_context():
+#     db.create_all()
 
 @app.route('/')
 def index():
-    result = User.query.all()
-    # print(result)
     return render_template("home.html")
 
 @app.route('/products')
@@ -228,7 +190,6 @@ def delete_product(prod_id):
     db.session.commit()
     return redirect('/products')
   
-  
 # Define the path to the static folder
 static_folder = os.path.join(app.root_path, 'static')
 
@@ -238,7 +199,6 @@ def generate(barcode, folder):
         new_folder_path = os.path.join(static_folder, path)
         os.makedirs(new_folder_path, exist_ok=True)
     code128.image(barcode).save(f"static/{path}/{barcode}.png")
-    
 
 @app.route('/delete_barcode', methods=['POST'])
 def delete_barcode():
@@ -274,7 +234,7 @@ def add_update_category(cat_id):
         name = request.form['name']
         code = request.form['code']
         if cat_id is None:
-            new_category = Category(name=name, code=code)
+            new_category = Category(name=name, code=code)      
             db.session.add(new_category)
             db.session.commit()
             return redirect('/categories')
@@ -310,8 +270,54 @@ def create_bill():
     for b in bill:
         prod = Product.query.filter_by(barcode=b).first()
         products.append(prod)
-    return render_template('/bill/create-bill.html', bill=bill, products=products)                         
+    customers = Customer.query.all()
+    products_json = json.dumps([product.serialize() for product in products])
+    return render_template('/bill/create-bill.html', bill=bill, products=products, customers=customers, products_json=products_json)
 
+@app.route('/remove-product-from-bill', methods=['POST'])
+def remove_product_from_bill():
+    data = request.get_json()
+    print('delete:',data)
+    barcode = data['barcode']
+    print('delete:',barcode)
+    bill.discard(barcode)
+    print('NewBill:',bill)
+    return {'message':'successfully deleted'}
+
+@app.route('/save-bill', methods=['POST'])
+def save_bill():
+    data = request.get_json()
+    customerType = data['customerType']
+    customerId = data['customerId']
+    customerDetails = data['customerDetails']
+    totalBill = data['totalBill']
+    productList = data['productList']
+
+    customer = getCustomer(customerType, customerId, customerDetails)
+    print('CID:',customer.id, customer.name)
+
+    order = Order(order_total=totalBill,customer_id=customer.id)
+    db.session.add(order)
+    db.session.commit()
+    print('Order:',order.id)
+
+    for prod in productList:
+        product = OrderItem(product_id=prod["id"], quantity=prod["quantity"], price_per_quantity=prod["pricePerQuantity"], order_id=order.id)
+        db.session.add(product)
+    db.session.commit()
+
+
+    return {'message':'successfully saved'}
+
+def getCustomer(customerType, customerId, customerDetails):    
+    if (customerType == 'existing' and customerId != 0):
+        customer = Customer.query.get(customerId)
+        return customer
+    else:
+        new_customer = Customer(name=customerDetails['name'], phone=customerDetails['mobile'], address=customerDetails['address'])
+        db.session.add(new_customer)
+        db.session.commit()
+        return new_customer
 
 if __name__ == '__main__':
     app.run(debug=True)
@@ -322,7 +328,7 @@ if __name__ == '__main__':
 # VEG       TOM     B224    02
 
 """
-Fruits & Vegetables
+Fruits & Vegetables 
 Bakery & Cereals
 Dairy & Eggs
 Meat & Seafood
@@ -331,3 +337,15 @@ Beverages
 Household Items
 Personal Care
 """
+
+'''
+Bill Form with Customer Information
+Bulk Data CSV
+Customer wise Bill Information
+    /customers/bills/arshad/billNo
+Send Invoice via Whatsapp
+
+Payment Information & Status
+
+Search Box for Products, Customers
+'''

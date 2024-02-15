@@ -1,0 +1,27 @@
+Make sure PYTHON, GIT, PostgreSQL, PGAdmin(optional) is installed
+
+step 1:
+create new folder
+
+2.
+open cmd in that folder
+
+3. 
+git clone https://github.com/aman123aman123/billing.git
+cd billing
+
+4.
+pip install virtualenv
+python -m venv flask
+flask\Scripts\activate
+python -m pip install -r requirements.txt
+
+                        username: password          port database
+DATABASE = 'postgresql://postgres:aman123@localhost:5433/postgres'
+
+5.
+python create_table.py
+#import data into tables
+
+6:
+flask run --reload
