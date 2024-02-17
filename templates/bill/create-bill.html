@@ -223,7 +223,7 @@
 </table>
 {% endblock %} {% block script %}
 <script>
-    var PriceList = [];
+    var PriceList = new Set();
     var ProductList = [];
 
     function getProductDetails(prodId){
@@ -237,10 +237,12 @@
     // Check if the form is rendered
   const form = document.querySelector('#billForm');
 
+  var PRODUCTS = '';
+
   if (form) {
-    const products = JSON.parse({{ products_json | tojson | safe }})
-    if(products) {
-      products.forEach(product => {
+    PRODUCTS = JSON.parse({{ products_json | tojson | safe }})
+    if(PRODUCTS) {
+      PRODUCTS.forEach(product => {
         getPricePerQuantity(product.quantity, product.price, product.id)
       })
     }
@@ -263,7 +265,7 @@
       updateTotalBill(prodId)
     }
     function updateTotalBill(prodId){
-      PriceList?.push(document.querySelector('#totalPrice'+prodId))
+      PriceList?.add(document.querySelector('#totalPrice'+prodId))
       console.log('PL:',PriceList)
       sum = 0
       PriceList?.forEach(price => {
@@ -272,7 +274,6 @@
       })
       console.log('TotalBill', sum)
       document.querySelector("#totalBill").value = sum;
-      getProductDetails(prodId)
     }
 
     var CustomerType = 'new'
@@ -318,14 +319,19 @@
       const customerType = CustomerType
       var customerId = 0;
       if(customerType === 'existing')
-        customerId = document.querySelector('#existingCustomer').value;
+        customerId = Number(document.querySelector('#existingCustomer').value);
       const customerDetails = {
         name: document.querySelector('#customerName').value,
         mobile: document.querySelector('#mobileNumber').value,
         address: document.querySelector('#address').value,
       };
 
-      const totalBill = document.querySelector('#totalBill').value;
+      const totalBill = Number(document.querySelector('#totalBill').value);
+
+      PRODUCTS.forEach(product => {
+        getProductDetails(product.id)
+      })
+      console.log('ProdList:', ProductList)
       
       data = {
         customerType: customerType,
@@ -352,7 +358,11 @@
             productList: getBillData().productList,
         })
       })
-      .then(response => console.log(response))
+      .then(response => {console.log(response);
+        if(response.status === 200) {
+          window.location.pathname='/show-bill';
+        }
+      })
       .then(data => {console.log(data);})
       .catch(error => console.error('Error:', error));
     }

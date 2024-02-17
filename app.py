@@ -5,10 +5,13 @@ from flask_ngrok import run_with_ngrok
 import numpy as np
 
 import code128
-import os, json
+import os, json, random
 from barcode import generate
+from barcode.codex import Code39
 
-import winsound
+import winsound, csv
+
+from io import TextIOWrapper
 
 # https://www.perplexity.ai/search/create-a-nested-W4hbR477QTOylqe.3djvkw?s=c#3cc09b57-a1a2-40cf-9263-dd6e2dfd726b
 
@@ -31,6 +34,7 @@ camera=cv2.VideoCapture(0)
   
 camera_on = False
 bill = set()
+current_order_id = 0
 
 def generate_frames():
     global camera_on 
@@ -110,7 +114,7 @@ class Order(db.Model):
     __tablename__ = 'orders'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     order_date = db.Column(db.DateTime, nullable=False, default=datetime.now())
-    order_total = db.Column(db.Integer, nullable=False)
+    order_total = db.Column(db.Float, nullable=False)
     payment_method = db.Column(db.String, nullable=False, default='cash')
     payment_status = db.Column(db.String, nullable=False, default='pending')
     
@@ -123,11 +127,11 @@ class OrderItem(db.Model):
     order_id = db.Column(db.Integer, db.ForeignKey("orders.id"))
     product_id = db.Column(db.Integer, db.ForeignKey("products.id"))
      
-    quantity = db.Column(db.Integer, nullable=False)
-    price_per_quantity = db.Column(db.Integer, nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    price_per_quantity = db.Column(db.Float, nullable=False)
 
-# with app.app_context():
-#     db.create_all()
+with app.app_context():
+    db.create_all()
 
 @app.route('/')
 def index():
@@ -194,11 +198,15 @@ def delete_product(prod_id):
 static_folder = os.path.join(app.root_path, 'static')
 
 def generate(barcode, folder):
+    print('creating new barcode')
     path = 'images/barcodes/'+folder
     if not os.path.exists(path):
         new_folder_path = os.path.join(static_folder, path)
+        print('NFP:',new_folder_path)
         os.makedirs(new_folder_path, exist_ok=True)
-    code128.image(barcode).save(f"static/{path}/{barcode}.png")
+    Code39(barcode).save(f"static/{path}/{barcode}")
+    print('New Barcode Saved:', barcode)
+
 
 @app.route('/delete_barcode', methods=['POST'])
 def delete_barcode():
@@ -209,11 +217,14 @@ def delete_barcode():
     return {'message': 'success'}
     
 def delete(barcode, category):
-    file_path = os.path.join(static_folder, f'images/barcodes/{category}/{barcode}.png')
+    file_path = os.path.join(static_folder, f'images/barcodes/{category}/{barcode}.svg')
     # Check if the file exists
+    print(file_path)
     if os.path.exists(file_path):
         # Delete the file
         os.remove(file_path)
+        print('Barcode Deleted:', barcode)
+    print('Barcode Not Found')
 
 @app.route('/categories')
 def categories():
@@ -269,7 +280,8 @@ def create_bill():
     products = []
     for b in bill:
         prod = Product.query.filter_by(barcode=b).first()
-        products.append(prod)
+        if prod is not None:
+            products.append(prod)
     customers = Customer.query.all()
     products_json = json.dumps([product.serialize() for product in products])
     return render_template('/bill/create-bill.html', bill=bill, products=products, customers=customers, products_json=products_json)
@@ -286,11 +298,13 @@ def remove_product_from_bill():
 
 @app.route('/save-bill', methods=['POST'])
 def save_bill():
+    global current_order_id
+
     data = request.get_json()
     customerType = data['customerType']
-    customerId = data['customerId']
+    customerId = int(data['customerId'])
     customerDetails = data['customerDetails']
-    totalBill = data['totalBill']
+    totalBill = float(data['totalBill'])
     productList = data['productList']
 
     customer = getCustomer(customerType, customerId, customerDetails)
@@ -299,6 +313,7 @@ def save_bill():
     order = Order(order_total=totalBill,customer_id=customer.id)
     db.session.add(order)
     db.session.commit()
+    current_order_id = order.id
     print('Order:',order.id)
 
     for prod in productList:
@@ -306,8 +321,32 @@ def save_bill():
         db.session.add(product)
     db.session.commit()
 
+    global bill
+    bill.clear()
 
     return {'message':'successfully saved'}
+
+@app.route('/show-bill')
+def show_bill():
+    global current_order_id
+    order = Order.query.get(current_order_id)
+    customer = Customer.query.get(order.customer_id)
+
+    data = db.session.query(Product.name, OrderItem.quantity, OrderItem.price_per_quantity).join(OrderItem).join(Order).filter(Order.id == order.id).group_by(Product.name, OrderItem.quantity, OrderItem.price_per_quantity).all()
+    print('data:', data)   
+    
+    return render_template('bill/show-bill.html', order=order, customer=customer, ordered_products=data)
+
+@app.route('/update-payment-method', methods=['POST'])
+def update_payment_method():
+    global current_order_id
+    data = request.get_json()
+    order = Order.query.get(current_order_id)
+    order.payment_method = data['payment_method']
+    order.payment_status = 'paid'
+    db.session.commit()
+    return {'status': 'success'}
+
 
 def getCustomer(customerType, customerId, customerDetails):    
     if (customerType == 'existing' and customerId != 0):
@@ -318,6 +357,57 @@ def getCustomer(customerType, customerId, customerDetails):
         db.session.add(new_customer)
         db.session.commit()
         return new_customer
+
+@app.route('/import-export')
+def import_export():
+    return render_template('data/import_export.html')
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return 'No file part'
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return 'No selected file'
+
+    if file:
+        csv_file = TextIOWrapper(file, encoding='utf-8')
+        csv_reader = csv.reader(csv_file)
+        
+        for row in csv_reader:
+            print(f"{row[0]} | {row[1]} | {row[2]} | {row[3]}")
+            cat_id = int(row[3])
+            barcode = create_barcode(row[0], cat_id)
+            product = Product(name=row[0], price=int(row[1]), quantity=int(row[2]), barcode=barcode, category_id=cat_id)
+            db.session.add(product)
+
+        db.session.commit()
+
+        return 'File uploaded successfully'
+
+    return 'Error uploading file'
+
+def create_barcode(name, cat_id):
+    date = datetime.now()
+    month = date.month
+    if month < 10:
+        month = '0' + str(month)
+    year = str(date.year - 2000)
+    batch = month + year
+    three_digit_random_number = str(random.randint(100, 999))
+    category = Category.query.get(cat_id)
+    code = category.code.upper() + name[:3].upper() + batch + three_digit_random_number
+    print(code, category.code)
+    generate(code, category.code)
+
+    return code
+
+"""
+https://www.perplexity.ai/search/how-to-write-T4gKu1wEQaO.51aI2O_RJg?s=c#539e7856-c9dc-49ea-8d3e-a7431c7382e2
+
+"""
 
 if __name__ == '__main__':
     app.run(debug=True)

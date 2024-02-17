@@ -18,7 +18,7 @@
         <label for="name" class="col-sm-4 col-form-label">Name</label>
         <div class="col-sm-8">
           <input type="text" class="form-control mb-3" id="name" name="name" placeholder="Name"
-            value="{{product.name if product else ''}}" onchange="createBarcode(this.value)">
+            value="{{product.name if product else ''}}" oninput="createBarcode(this.value)">
         </div>
       </div>
 
@@ -43,7 +43,7 @@
       <div class="form-group row">
         <label for="category" class="col-sm-4 col-form-label">Select Category</label>
         <div class="col-sm-8">
-          <select class="form-select mb-3" aria-label="Select Category" name="category" id="category" onchange="createBarcode(this.value)">
+          <select class="form-select mb-3" aria-label="Select Category" name="category" id="category" oninput="createBarcode(this.value)">
             <option value="select">select category</option>
             {% for category in categories %}
               <option value="{{category.code}}" {{ 'selected' if cat_code == category.code else '' }}>{{category.name | title}}</option>
