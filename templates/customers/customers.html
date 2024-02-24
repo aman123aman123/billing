@@ -1,0 +1,57 @@
+{% extends 'base.html' %} {% block main %}
+<div class="page-content container mt-4">
+  <div class="page-header text-blue-d2">
+    <div class="card">
+      <div class="card-body"></div>
+    </div>
+  </div>
+</div>
+<div class="container mt-3 mb-5">
+  <div class="row">
+    <div class="col">
+      <!-- Heading centered -->
+      <h3
+        class="text-center shadow-sm p-3 bs-info-bg-subtle rounded text-emphasis"
+      >
+        Customer Details
+      </h3>
+    </div>
+  </div>
+
+  <!--<div class="container mt-2">-->
+  <div class="page-content container mt-3">
+    <div class="page-header text-blue-d2">
+      <div class="card">
+        <div class="card-body">
+          <table class="table table-striped text-center">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Address</th>
+                <th>Bills</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cust in customers %}
+              <tr>
+                <td>{{loop.index}}</td>
+                <td>{{cust.name}}</td>
+                <td>{{cust.phone}}</td>
+                <td>{{cust.address}}</td>
+                <td>
+                  <a href="/customers/{{cust.id}}/bills" class="btn btn-primary"
+                    >Show Bills</a
+                  >
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

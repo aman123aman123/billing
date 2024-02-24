@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bootstrap demo</title>
+    <style>
+      body {
+        background-color: #e5e6eb;
+      }
+      
+    </style>
+    {% block style %} {% endblock %}
+  </head>
+
+  <body>
+    <div style="margin-right: auto; margin-left: auto; max-width: 1140px;">
+      <div style="margin-bottom: 24px;">
+        <h1 style="font-size: 48px; font-weight: 800;">Thanks for your order, {{customer.name}}</h1>
+      </div>
+      <div style="max-width: 1140px; margin-right: auto; margin-left: auto; margin-bottom: 40px;">
+        <div style="color: #007bff;">
+            
+    
+    
+    
+    <div style="margin-bottom: 24px;">
+        <div style="padding: 15px;">
+          <div style="max-width: 1140px; margin-right: auto; margin-left: auto; margin-bottom: 40px;">
+            <div style="display: flex; align-items: baseline;">
+              <div style="flex: 0 0 75%; max-width: 75%;">
+                <p style="color: #7e8d9f;font-size: 20px;">Invoice &gt;&gt; <strong>Order: #{{order.id}}</strong></p>
+              </div>
+              <div style="flex: 0 0 25%; max-width: 25%; text-align: right;">
+                <a style="background-color: #fff; color: #000; text-transform: capitalize; border: none; box-shadow: none; padding: 0.5rem 1rem; margin-right: 0.5rem;"><i
+                    class="fas fa-print text-primary"></i> Print</a>
+                <a style="background-color: #fff; color: #000; text-transform: capitalize; border: none; box-shadow: none; padding: 0.5rem 1rem;"><i
+                    class="far fa-file-pdf text-danger"></i> Export</a>
+              </div>
+              <hr style="margin-top: 0; margin-bottom: 1rem;">
+            </div>
+      
+            <div style="max-width: 1140px; margin-right: auto; margin-left: auto;">
+              <div style="text-align: center;">
+                    <i class="far fa-building fa-4x ms-0" style="color:#8f8061 ;"></i>
+                  
+                  <p style="padding-top: 0; margin-top: 0;">MAHA-SuperSaver</p>
+                </div>
+      
+              
+      
+      
+              <div style="display: flex;">
+                <div style="flex: 0 0 66.66667%; max-width: 66.66667%;">
+                  <ul style="list-style: none; margin: 0; padding: 0;">
+                    <li style="color: #6c757d;">To: <span style="color:#5d9fc5 ;">{{customer.name}}</span></li>
+                    <li style="color: #6c757d;">Mobile No: <span style="color:#5d9fc5 ;"><i class="fas fa-phone"></i> {{customer.phone}}</li>
+                      <li style="color: #6c757d;">Address: <span style="color:#5d9fc5 ;">{{customer.address}}</li>
+                  </ul>
+                </div>
+                <div style="flex: 0 0 33.33333%; max-width: 33.33333%;">
+                  <p style="color: #6c757d;">Invoice</p>
+                  <ul style="list-style: none; margin: 0; padding: 0;">
+                    <li style="color: #6c757d;"><i class="fas fa-circle" style="color:#84B0CA ;"></i> <span
+                        style="font-weight: bold;">ID:</span>#{{order.id}}</li>
+                    <li style="color: #6c757d;"><i class="fas fa-circle" style="color:#84B0CA ;"></i> <span
+                        style="font-weight: bold;">Creation Date: </span>{{order.order_date}}</li>
+                    <li style="color: #6c757d;"><i class="fas fa-circle" style="color:#84B0CA ;"></i> <span
+                        style="margin-right: 0.5rem; font-weight: bold;">Status:</span><span style="background-color: {{'green' if order.payment_status == 'paid' else 'yellow' }}; color: #000; font-weight: bold; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">
+                        {{order.payment_status}}</span></li>
+                  </ul>
+                </div>
+              </div>
+      
+              <div style="margin-top: 16px; margin-bottom: 16px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <thead style="background-color:#84B0CA ; color: #fff;">
+                    <tr>
+                      <th scope="col">#</th>
+                      <th scope="col">Product Name</th>
+                      <th scope="col">Qty</th>
+                      <th scope="col">Price</th>
+                      <th scope="col">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for prod in ordered_products %}
+                    <tr>
+                      <th scope="row">{{loop.index}}</th>
+                      <td>{{prod.name}}</td>
+                      <td>{{prod.quantity}}</td>
+                      <td>{{prod.price_per_quantity}}</td>
+                      <td>{{prod.quantity * prod.price_per_quantity}}</td>
+                    </tr>
+                    {% endfor %}
+                     </tbody>
+      
+                </table>
+              </div>
+              <div style="display: flex;">
+                <div style="flex: 0 0 66.66667%; max-width: 66.66667%;">
+    
+      
+                </div>
+                <div style="flex: 0 0 33.33333%; max-width: 33.33333%;">
+                  
+                  <p style="color: #000; float: left;"><span style="color: #000; margin-right: 0.75rem;"> Total Amount</span><span
+                      style="font-size: 25px;">{{order.order_total}}</span></p>
+                </div>
+              </div>
+              <hr style="margin-top: 1rem; margin-bottom: 1rem;">
+              <div style="display: flex;">
+                <div style="flex: 0 0 83.33333%; max-width: 83.33333%;">
+                  <p>Thank you for your purchase</p>
+                </div>
+              </div>
+      
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div>
+    </div>
+    </div>
+</body>
+</html>

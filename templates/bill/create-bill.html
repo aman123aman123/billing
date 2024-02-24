@@ -1,226 +1,306 @@
 {% extends 'base.html' %} {% block main %}
-<div class="row">
-  <div class="col">
-    <img src="{{ url_for('video_feed') }}" width="640" height="480" />
-    <br />
-    <form action="{{ url_for('toggle_camera') }}" method="get">
-      <input type="submit" class="btn btn-success" value="Toggle Camera" />
-    </form>
-    <br />
-
-    {% for b in bill %}
-    <p>{{b}}</p>
-    {% endfor %}
-  </div>
-  <!-- Product -->
-  <!-- AvailableQty -->
-  <!-- PricePerQty = Price / Qty -->
-  <!-- Quantity -->
-  <!-- Total = PricePerQty * Quantity -->
-
-  <!-- CustomerName -->
-  <!-- Mobile -->
-  <!-- Area -->
-  <div class="col">
-    {% if products %}
-    <form id="billForm">
-      {% for prod in products %}
-      <div class="row">
-        <div class="col">
-          <button type="button" class="btn btn-danger" onclick="removeProductFromBill('{{prod.barcode}}')">Remove</button>
-          <div class="form-floating">
-            <input
-              type="text"
-              class="form-control"
-              placeholder="Product Name"
-              aria-label="Product Name"
-              name="name"
-              id="name{{prod.id}}"
-              value="{{prod.name}}"
-              disabled
-            />
-            <label for="name{{prod.id}}">Product Name</label>
-          </div>
-        </div>
-
-        <div class="col">
-          <div class="form-floating">
-            <input
-              type="number"
-              class="form-control"
-              placeholder="Available Quantity"
-              aria-label="Available Quantity"
-              name="availableQuantity"
-              id="availableQuantity{{prod.id}}"
-              value="{{prod.quantity}}"
-              disabled
-            />
-            <label for="availableQuantity{{prod.id}}">Available Quantity</label>
-          </div>
-        </div>
-
-        <div class="col">
-          <div class="form-floating">
-            <input
-              type="number"
-              class="form-control"
-              placeholder="Quantity"
-              aria-label="Quantity"
-              name="quantity"
-              id="quantity{{prod.id}}"
-              value="1"
-              oninput="getPricePerQuantity({{prod.quantity}},{{prod.price}}, {{prod.id}})"
-            />
-            <label for="quantity{{prod.id}}">Quantity</label>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="col">
-          <div class="form-floating">
-            <input
-              type="number"
-              class="form-control"
-              placeholder="Price Per Quantity"
-              aria-label="Price Per Quantity"
-              name="pricePerQuantity"
-              id="pricePerQuantity{{prod.id}}"
-              disabled
-            />
-            <label for="pricePerQuantity{{prod.id}}">Price Per Quantity</label>
-          </div>
-        </div>
-
-        <div class="col">
-          <div class="form-floating">
-            <input
-              type="number"
-              class="form-control totalPrice"
-              placeholder="Amount"
-              aria-label="Amount"
-              name="totalPrice"
-              id="totalPrice{{prod.id}}"
-              disabled
-            />
-            <label for="totalPrice{{prod.id}}">Amount</label>
-          </div>
-        </div>
-      </div>
-
-      {% endfor %}
-
-      <div class="row">
-        <div class="col">
-          <div class="form-floating">
-            <input
-              type="number"
-              class="form-control"
-              placeholder="Total Bill"
-              aria-label="Total Bill"
-              name="totalBill"
-              id="totalBill"
-              disabled
-            />
-            <label for="totalBill">Total Bill</label>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="col">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick="toggleCustomerForm('new')"
-          >
-            New Customer
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick="toggleCustomerForm('existing')"
-          >
-            Existing Customer
-          </button>
-        </div>
-      </div>
-      <!-- Customer Details -->
-      <div class="row" id="newCustomerForm">
-        <div class="col">
-          <input
-            type="text"
-            class="form-control"
-            placeholder="Customer Name"
-            aria-label="Customer Name"
-            name="customerName"
-            id="customerName"
-          />
-        </div>
-        <div class="col">
-          <input
-            type="text"
-            class="form-control"
-            placeholder="Mobile Number"
-            aria-label="Mobile Number"
-            name="mobileNumber"
-            id="mobileNumber"
-          />
-        </div>
-        <div class="col">
-          <input
-            type="text"
-            class="form-control"
-            placeholder="Address"
-            aria-label="Address"
-            name="address"
-            id="address"
-          />
-        </div>
-      </div>
-
-      <div class="row" id="existingCustomerForm">
-        <div class="col">
-          <select name="existingCustomer" id="existingCustomer" class="form-select">
-            <option value="0">Select Customer</option>
-            {% for cust in customers %}
-            <option value="{{cust.id}}">
-              {{cust.name | title}} | {{cust.phone}} | {{cust.address | title}}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-
-      <div class="d-grid gap-2">
-        <button type="button" class="btn btn-primary btn-block" onclick="saveBill()">submit</button>
-      </div>
-    </form>
+<div class="page-content container mt-4">
+  <div class="page-header text-blue-d2">
+    <div class="card">
+      <div class="card-body"></div>
+    </div>
   </div>
 </div>
-{% endif %}
-<table class="table table-striped table-hover text-center">
-  <thead class="table-success">
-    <tr>
-      <th scope="col">#</th>
-      <th scope="col">Name</th>
-      <th scope="col">Quantity</th>
-      <th scope="col">Price</th>
-      <th scope="col">Barcode</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for product in products %}
-    <tr>
-      <td>{{product.id}}</td>
-      <td>{{product.name}}</td>
-      <td>{{product.quantity}}</td>
-      <td>{{product.price}}</td>
-      <td>{{product.barcode}}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="container mt-3 mb-5">
+  <div class="row">
+    <div class="col">
+      <!-- Heading centered -->
+      <h3
+        class="text-center shadow-sm p-3 bs-info-bg-subtle rounded text-emphasis"
+      >
+        Bill Creation
+      </h3>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <img src="{{ url_for('video_feed') }}" width="640" height="480" />
+      <br />
+      <form action="{{ url_for('toggle_camera') }}" method="get">
+        <input type="submit" class="btn btn-success" value="Toggle Camera" />
+      </form>
+      <br />
+
+      {% for b in bill %}
+      <!--<p>{{b}}</p>-->
+      {% endfor %}
+    </div>
+    <!-- Product -->
+    <!-- AvailableQty -->
+    <!-- PricePerQty = Price / Qty -->
+    <!-- Quantity -->
+    <!-- Total = PricePerQty * Quantity -->
+
+    <!-- CustomerName -->
+    <!-- Mobile -->
+    <!-- Area -->
+
+    <div class="col">
+      <div class="page-header text-blue-d2">
+        <div class="card">
+          <div class="card-body">
+            <div class="row">
+              {% if products %}
+              <form id="billForm">
+                {% for prod in products %}
+                <div class="row">
+                  <div class="row align-items-center">
+                    <div class="col-11">
+                      <div class="form-floating">
+                        <input
+                          type="text"
+                          class="form-control"
+                          placeholder="Product Name"
+                          aria-label="Product Name"
+                          name="name"
+                          id="name{{prod.id}}"
+                          value="{{prod.name}}"
+                          disabled
+                        />
+                        <label for="name{{prod.id}}">Product Name</label>
+                      </div>
+                    </div>
+                    <div class="col-1">
+                      <button
+                        class="btn btn-danger btn-sm rounded-0"
+                        onclick="removeProductFromBill('{{prod.barcode}}')"
+                        type="button"
+                        data-toggle="tooltip"
+                        data-placement="top"
+                        title="Delete"
+                      >
+                        <i class="fa fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col">
+                      <div class="form-floating">
+                        <input
+                          type="number"
+                          class="form-control"
+                          placeholder="Available Quantity"
+                          aria-label="Available Quantity"
+                          name="availableQuantity"
+                          id="availableQuantity{{prod.id}}"
+                          value="{{prod.quantity}}"
+                          disabled
+                        />
+                        <label for="availableQuantity{{prod.id}}"
+                          >Available Quantity</label
+                        >
+                      </div>
+                    </div>
+
+                    <div class="col">
+                      <div class="form-floating">
+                        <input
+                          type="number"
+                          class="form-control"
+                          placeholder="Quantity"
+                          aria-label="Quantity"
+                          name="quantity"
+                          id="quantity{{prod.id}}"
+                          value="1"
+                          oninput="getTotalPrice({{prod.id}})"
+                        />
+                        <!-- oninput="getPricePerQuantity({{prod.quantity}},{{prod.price}}, {{prod.id}})" -->
+                        <label for="quantity{{prod.id}}">Quantity</label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row">
+                    <div class="col">
+                      <div class="form-floating">
+                        <input
+                          type="number"
+                          class="form-control"
+                          placeholder="Price Per Quantity"
+                          aria-label="Price Per Quantity"
+                          name="pricePerQuantity"
+                          id="pricePerQuantity{{prod.id}}"
+                          value="{{prod.price_per_quantity}}"
+                          disabled
+                        />
+                        <label for="pricePerQuantity{{prod.id}}"
+                          >Price Per Quantity</label
+                        >
+                      </div>
+                    </div>
+
+                    <div class="col">
+                      <div class="form-floating">
+                        <input
+                          type="number"
+                          class="form-control totalPrice"
+                          placeholder="Amount"
+                          aria-label="Amount"
+                          name="totalPrice"
+                          id="totalPrice{{prod.id}}"
+                          disabled
+                        />
+                        <label for="totalPrice{{prod.id}}">Amount</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+                <!-- </div> -->
+                <div class="row">
+                  <div class="col">
+                    <div class="form-floating">
+                      <input
+                        type="number"
+                        class="form-control"
+                        placeholder="Total Bill"
+                        aria-label="Total Bill"
+                        name="totalBill"
+                        id="totalBill"
+                        disabled
+                      />
+                      <label for="totalBill">Total Bill</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="page-header text-blue-d2">
+                  <div class="card">
+                    <div class="card-body">
+                      <div class="row">
+                        <div class="col">
+                          <button
+                            type="button"
+                            class="btn btn-secondary"
+                            onclick="toggleCustomerForm('new')"
+                          >
+                            New Customer
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-secondary"
+                            onclick="toggleCustomerForm('existing')"
+                          >
+                            Existing Customer
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- NEW CUSTOMER FORM -->
+
+                      <div class="row" id="newCustomerForm">
+                        <div class="col">
+                          <div class="page-content container mt-3">
+                            <div class="form-floating">
+                              <input
+                                type="text"
+                                class="form-control"
+                                placeholder="Customer Name"
+                                aria-label="Customer Name"
+                                name="customerName"
+                                id="customerName"
+                              />
+                              <label for="customerName">Customer Name</label>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col">
+                          <div class="page-content container mt-1">
+                            <div class="form-floating">
+                              <input
+                                type="text"
+                                class="form-control"
+                                placeholder="Mobile Number"
+                                aria-label="Mobile Number"
+                                name="mobileNumber"
+                                id="mobileNumber"
+                              />
+                              <label for="mobileNumber">Mobile Number</label>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col">
+                          <div class="page-content container mt-1">
+                            <div class="form-floating">
+                              <input
+                                type="email"
+                                class="form-control"
+                                placeholder="Email Address"
+                                aria-label="Email Address"
+                                name="emailId"
+                                id="emailId"
+                              />
+                              <label for="emailId">Email ID</label>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col">
+                          <div class="page-content container mt-1">
+                            <div class="form-floating">
+                              <input
+                                type="text"
+                                class="form-control"
+                                placeholder="Address"
+                                aria-label="Address"
+                                name="address"
+                                id="address"
+                              />
+                              <label for="address">Address</label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- EXISTING CUSTOMER FORM -->
+
+                      <div class="row" id="existingCustomerForm">
+                        <div class="col">
+                          <select
+                            name="existingCustomer"
+                            id="existingCustomer"
+                            class="form-select"
+                          >
+                            <option value="0">Select Customer</option>
+                            {% for cust in customers %}
+                            <option value="{{cust.id}}">
+                              {{cust.name | title}} | {{cust.phone}} |
+                              {{cust.address | title}}
+                            </option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="page-content container mt-1">
+                        <div class="d-grid gap-2">
+                          <button
+                            type="button"
+                            class="btn btn-primary btn-block"
+                            onclick="saveBill()"
+                          >
+                            submit
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+</div>
+
 {% endblock %} {% block script %}
 <script>
     var PriceList = new Set();
@@ -230,7 +310,7 @@
       const product = {
         id: prodId,
         quantity: Number(document.querySelector('#quantity'+prodId).value),
-        pricePerQuantity: Number(document.querySelector('#pricePerQuantity'+prodId).value)
+        // pricePerQuantity: Number(document.querySelector('#pricePerQuantity'+prodId).value)
       }
       ProductList.push(product);
     }
@@ -243,18 +323,20 @@
     PRODUCTS = JSON.parse({{ products_json | tojson | safe }})
     if(PRODUCTS) {
       PRODUCTS.forEach(product => {
-        getPricePerQuantity(product.quantity, product.price, product.id)
+        // getPricePerQuantity(product.quantity, product.price, product.id)
+        getTotalPrice(product.id)
       })
     }
   }
-
+    /*
     function getPricePerQuantity(availableQty, totalPrice, prodId) {
       console.log(availableQty, totalPrice);
       const pricePerQuantity = Number(totalPrice) / Number(availableQty);
       const priceField = document.querySelector('#pricePerQuantity'+prodId);
-      priceField.value = pricePerQuantity;
+      priceField.value = pricePerQuantity.toFixed(2);
       getTotalPrice(prodId)
     }
+    */
     function getTotalPrice(prodId){
       console.log('running getTotalPrice')
       const quantity = document.querySelector("#quantity"+prodId).value;
@@ -323,6 +405,7 @@
       const customerDetails = {
         name: document.querySelector('#customerName').value,
         mobile: document.querySelector('#mobileNumber').value,
+        email: document.querySelector('#emailId').value,
         address: document.querySelector('#address').value,
       };
 
@@ -331,8 +414,8 @@
       PRODUCTS.forEach(product => {
         getProductDetails(product.id)
       })
-      console.log('ProdList:', ProductList)
-      
+      console.table(ProductList)
+
       data = {
         customerType: customerType,
         customerId: customerId,

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block main %}
+<div class="page-content container mt-4">
+  <div class="page-header text-blue-d2">
+    <div class="card">
+      <div class="card-body"></div>
+    </div>
+  </div>
+</div>
+<button onclick="pay()" class="btn mt-5">Pay Now</button>
+{% endblock  %}
+
+{% block script %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+    var options = {
+      "key": "{{TEST_API_KEY}}",    
+    "name": "Billing",
+    "order_id": "{{order.id}}",
+    "callback_url": "http://127.0.0.1:5000/capture",
+    "theme": {
+      "color": "#e5e6eb"
+    }};
+
+    function pay() {
+        var rzp = new Razorpay(options);
+        rzp.open();
+    }
+  </script>
+  {% endblock  %}

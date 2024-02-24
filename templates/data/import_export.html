@@ -1,12 +1,38 @@
 {% extends 'base.html' %}
 
 {% block main %}
-<h1>Import/Export</h1>
+<div class="page-content container mt-4">
+    <div class="page-header text-blue-d2">
+        <div class="card">
+            <div class="card-body">
+            </div>
+            </div>
+            </div>
+            </div>
+<div class="container mt-3 mb-5">
+    <div class="row">
+     <div class="col ">
+        <!-- Heading centered -->
+        <h3 class="text-center shadow-sm p-3 bs-info-bg-subtle rounded text-emphasis ">Data Import/Export</h3>
+      </div>
+    </div>
+
+    <div class="page-content container mt-3">
+        <div class="page-header text-blue-d2">
+            <div class="card">
+                <div class="card-body">
+        
 <form action="/upload" method="post" enctype="multipart/form-data">
     <label for="file" class="form-label">Import CSV File</label>
     <input type="file" name="file" id="file" class="form-control">
+    <div class="page-content container mt-3">
     <button type="submit" class="btn btn-success">Upload</button>
 </form>
+</div>
+</div>
+</div>
+</div>
+</div>
 {% endblock %}
 
 {% block script %}
