@@ -8,7 +8,70 @@
     </div>
   </div>
 </div>
-<button onclick="pay()" class="btn mt-5">Pay Now</button>
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title">Order Summary</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <p><strong>Order ID:</strong> {{ order.id }}</p>
+              <p><strong>Order Date:</strong> {{ order.order_date }}</p>
+            </div>
+            <div class="col-md-6">
+              <h6 class="card-subtitle mb-2 text-muted">Customer Information</h6>
+              <p><strong>Name:</strong> {{ customer.name }}</p>
+              <p><strong>Email:</strong> {{ customer.email }}</p>
+              <p><strong>Phone:</strong> {{ customer.phone }}</p>
+              <p><strong>Address:</strong> {{ customer.address }}</p>
+            </div>
+          </div>
+          <hr>
+          <h6 class="card-subtitle mb-2 text-muted">Ordered Products</h6>
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Product Name</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Total Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for prod in ordered_products %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{prod.name}}</td>
+                  <td>{{prod.quantity}}</td>
+                  <td>₹{{prod.price_per_quantity}}</td>
+                  <td>₹{{prod.quantity * prod.price_per_quantity}}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <hr>
+          <div class="d-flex justify-content-between align-items-center">
+            <strong>Total:</strong>
+            <span>₹{{order.order_total}}</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <button onclick="pay()" class="btn btn-success" type="button">Pay Now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--<button onclick="pay()" class="btn mt-5">Pay Now</button>-->
 {% endblock  %}
 
 {% block script %}
@@ -17,7 +80,7 @@
     var options = {
       "key": "{{TEST_API_KEY}}",    
     "name": "Billing",
-    "order_id": "{{order.id}}",
+    "order_id": "{{rzp_order.id}}",
     "callback_url": "http://127.0.0.1:5000/capture",
     "theme": {
       "color": "#e5e6eb"

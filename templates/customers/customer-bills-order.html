@@ -122,8 +122,8 @@
                       <th scope="row">{{loop.index}}</th>
                       <td>{{prod.name}}</td>
                       <td>{{prod.quantity}}</td>
-                      <td>{{prod.price_per_quantity}}</td>
-                      <td>{{prod.quantity * prod.price_per_quantity}}</td>
+                      <td>₹{{prod.price_per_quantity}}</td>
+                      <td>₹{{prod.quantity * prod.price_per_quantity}}</td>
                     </tr>
                     {% endfor %}
                   </tbody>
@@ -134,7 +134,7 @@
                 <div class="col-xl-3">
                   <p class="text-black float-start">
                     <span class="text-black me-3"> Total Amount</span
-                    ><span style="font-size: 25px">{{order.order_total}}</span>
+                    ><span style="font-size: 25px">₹{{order.order_total}}</span>
                   </p>
                 </div>
               </div>

@@ -29,6 +29,7 @@
                 <th>#</th>
                 <th>Name</th>
                 <th>Phone</th>
+                <th>Email</th>
                 <th>Address</th>
                 <th>Bills</th>
               </tr>
@@ -39,6 +40,7 @@
                 <td>{{loop.index}}</td>
                 <td>{{cust.name}}</td>
                 <td>{{cust.phone}}</td>
+                <td>{{cust.email}}</td>
                 <td>{{cust.address}}</td>
                 <td>
                   <a href="/customers/{{cust.id}}/bills" class="btn btn-primary"

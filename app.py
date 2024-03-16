@@ -1,46 +1,66 @@
 from flask import Flask, Response, render_template, request, redirect, flash
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from pyzbar import pyzbar
 import cv2
 from flask_ngrok import run_with_ngrok
 import numpy as np
-
-from flask_mail import Mail, Message
-import os, json, random, requests,razorpay
+from apyori import apriori
+import os, json, random, requests, razorpay
 from barcode import generate
 from barcode.codex import Code39
+import pandas as pd
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import winsound, csv
 
 from io import TextIOWrapper
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # https://www.perplexity.ai/search/create-a-nested-W4hbR477QTOylqe.3djvkw?s=c#3cc09b57-a1a2-40cf-9263-dd6e2dfd726b
 
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
-DATABASE = 'postgresql://postgres:aman123@localhost:5433/postgres'
+DATABASE = os.getenv('DATABASE_URL')
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+@login_manager.user_loader
+
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@login_manager.unauthorized_handler
+def unauthorized_callback():
+    if current_user.is_anonymous:
+        flash('You are not logged in', 'warning')
+        return redirect('/login')
+
 # db.init_app(app)  # uncomment this when you run the project for the first time then comment it
 # https://www.perplexity.ai/search/how-to-use-bVdC.G8GTlmoFt3rctfhBw?s=u
 run_with_ngrok(app)
 
-app.secret_key = 'aman is great'
+app.secret_key = os.getenv('APP_SECRET_KEY')
 
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 465
-app.config['MAIL_USE_TLS'] = False
-app.config['MAIL_USE_SSL'] = True
-app.config['MAIL_USERNAME'] = 'kelshiaman000@gmail.com'
-app.config['MAIL_PASSWORD'] = 'tvfe ifma ztqq pdbl'
+sender_email = os.getenv('SMTP_SENDER_EMAIL')
+smtp_server = os.getenv('SMTP_SERVER')
+smtp_port = os.getenv('SMTP_PORT')
+smtp_username = os.getenv('SMTP_USERNAME')
+smtp_password = os.getenv('SMTP_PASSWORD')
 
-mail = Mail(app)
 
-TEST_API_KEY = "rzp_test_GWr5DbXRheLvhC"
-TEST_API_SECRET_KEY = "GNNlZsnH47jSm5zIp1NJZiMq"
+TEST_API_KEY = os.getenv('RAZORPAY_TEST_API_KEY')
+TEST_API_SECRET_KEY = os.getenv('RAZORPAY_TEST_API_SECRET_KEY')
 
 client = razorpay.Client(auth=(TEST_API_KEY, TEST_API_SECRET_KEY))
 
@@ -48,8 +68,8 @@ camera=cv2.VideoCapture(0)
   
 camera_on = False 
 bill = set()  
-current_order_id = 58
- 
+current_order_id = 0
+
 def generate_frames():
     global camera_on 
     global bill
@@ -86,6 +106,16 @@ def generate_frames():
                 yield (b'--frame\r\n'
                     b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n\r\n')
   
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String, nullable=False)
+    phone = db.Column(db.String, nullable=False)
+    email = db.Column(db.String, nullable=False)
+    password = db.Column(db.String, nullable=False)
+    def __repr__(self) -> str:
+        return f"User: {self.name}"
+    
 class Customer(db.Model):
     __tablename__ = 'customers'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -94,7 +124,7 @@ class Customer(db.Model):
     email = db.Column(db.String, nullable=False)
     address = db.Column(db.String, nullable=False)
     def __repr__(self) -> str:
-        return f"User: {self.name}"
+        return f"Customer: {self.name}"
 
 class Product(db.Model):
     __tablename__ = 'products'
@@ -144,39 +174,107 @@ class OrderItem(db.Model):
      
     quantity = db.Column(db.Float, nullable=False)
 
+    def __repr__(self) -> str:
+        return f"#{self.id} | O:{self.order_id} | P:{self.product_id} | Q:{self.quantity}"
+
 # with app.app_context():
 #     db.create_all()
 
 @app.route('/')
 def index():
-    global current_order_id
+    # send_bill_email()
+    return render_template("home.html", current_user=current_user)
+ 
+# https://www.digitalocean.com/community/tutorials/how-to-add-authentication-to-your-app-with-flask-login
 
-    send_bill_email()
-    return render_template("home.html")
+@app.route('/login', methods=['GET','POST'])
+def login():
+    if request.method == 'POST':
+        try:   
+            email = request.form.get('email')
+            password = request.form.get('password')
+
+            user = User.query.filter_by(email=email).first()
+
+            if not user or not check_password_hash(user.password, password):
+                flash('Invalid Credentials', 'danger')
+                return redirect('/login')
+
+            login_user(user)
+
+            flash(f'Welcome back {user.name}', 'success')    
+            return redirect('/')
+        except:
+            flash('Something went wrong', 'danger')
+    else:
+        return render_template('/auth/login.html', current_user=current_user)
+
+@app.route('/register', methods=['GET','POST'])
+def register():
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            name = request.form.get('name')
+            phone = request.form.get('phone')
+            password = request.form.get('password')
+
+            user = User.query.filter_by(email=email).first()
+
+            if user:
+                flash('User Already Exists', 'warning')
+                return redirect('/register')
+            
+            new_user = User(name=name, email=email, phone=phone, password=generate_password_hash(password))
+            db.session.add(new_user)
+            db.session.commit()
+            flash(f'New User Created with Name: {name} & Email: {email}', 'success')
+
+            return redirect('/login')
+        except:
+            flash('Something went wrong while Registering the new user', 'danger')
+    else:
+        return render_template('/auth/register.html', current_user=current_user)
+        
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect('/login')
+
+
+@app.route('/bill-email')
+def bill_email():
+    order = Order.query.get(current_order_id)
+    customer = Customer.query.get(order.customer_id)
+
+    data = db.session.query(Product.name, OrderItem.quantity, Product.price_per_quantity).join(OrderItem).join(Order).filter(Order.id == order.id).group_by(Product.name, OrderItem.quantity, Product.price_per_quantity).all()
+    # print("Data:", data)
+    return  render_template('email/bill.html', order=order, customer=customer, ordered_products=data)
 
 @app.route('/products')
+@login_required
 def products():
     try:
         products = Product.query.all()
         sorted_products = sorted(products, key=lambda x: x.id)
-        return render_template("products/products.html", products=sorted_products)
+        return render_template("products/products.html", products=sorted_products, current_user=current_user)
     except:
         flash('COULD NOT FETCH PRODUCTS', 'danger')
         return redirect('/')
 
 @app.route('/products/add-update', defaults={'prod_id': None}, methods=["POST","GET"])
 @app.route('/products/add-update/<prod_id>',methods=["POST","GET"])
+@login_required
 def add_update_product(prod_id):
     try:
         if request.method=="GET":   
             categories = Category.query.all()
             if prod_id is None:
-                return render_template("products/add-update.html", categories=categories)
+                return render_template("products/add-update.html", categories=categories, current_user=current_user)
             else:
                 product = Product.query.get(prod_id)
                 category = Category.query.get(product.category_id)
             
-                return render_template("products/add-update.html", product=product, prod_id=prod_id, categories=categories, cat_code=category.code)
+                return render_template("products/add-update.html", product=product, prod_id=prod_id, categories=categories, cat_code=category.code, current_user=current_user)
         else:
             name=request.form["name"]
             price=request.form["price"]
@@ -215,6 +313,7 @@ def add_update_product(prod_id):
         return redirect('/products')
 
 @app.route('/products/delete/<int:prod_id>')
+@login_required
 def delete_product(prod_id):
     try:
         product = Product.query.get(prod_id)
@@ -247,6 +346,7 @@ def generate(barcode, folder):
 
 
 @app.route('/delete_barcode', methods=['POST'])
+@login_required
 def delete_barcode():
     data = request.get_json()
     barcode = data['barcode']
@@ -265,25 +365,27 @@ def delete(barcode, category):
     print('Barcode Not Found')
 
 @app.route('/categories')
+@login_required
 def categories():
     try:
         categories = Category.query.all()
         sorted_categories = sorted(categories, key=lambda x: x.id)
-        return render_template('categories/categories.html', categories=sorted_categories)
+        return render_template('categories/categories.html', categories=sorted_categories, current_user=current_user)
     except:
         flash('ERROR FETCHING CATEGORIES', 'danger')
         return redirect('/')
 
 @app.route('/category/add-update', defaults={'cat_id': None}, methods=["POST","GET"])
 @app.route('/category/add-update/<cat_id>',methods=["POST","GET"])
+@login_required
 def add_update_category(cat_id):
     try:
         if request.method == 'GET':
             if cat_id is None:
-                return render_template('/categories/add-update.html')
+                return render_template('/categories/add-update.html', current_user=current_user)
             else:
                 category = Category.query.get(cat_id)
-                return render_template('/categories/add-update.html', category=category, cat_id=cat_id)
+                return render_template('/categories/add-update.html', category=category, cat_id=cat_id, current_user=current_user)
         else:
             name = request.form['name']
             code = request.form['code']
@@ -304,6 +406,7 @@ def add_update_category(cat_id):
         return redirect('/categories')
 
 @app.route('/category/delete/<int:cat_id>')
+@login_required
 def delete_category(cat_id):
     try:
         category = Category.query.get(cat_id)
@@ -315,6 +418,7 @@ def delete_category(cat_id):
         return redirect('/categories')
 
 @app.route('/video_feed')
+@login_required
 def video_feed():
     try:
         return Response(generate_frames(),mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -323,18 +427,20 @@ def video_feed():
         return redirect('/')
 
 @app.route('/toggle_camera')
+@login_required
 def toggle_camera():
     global camera_on
     camera_on = not camera_on
     return redirect('/create-bill')
 
 @app.route('/create-bill')
+@login_required
 def create_bill():
     try:
         global bill
         print('bill', bill, type(bill))
         if bill is None:
-            return render_template('/bill/create-bill.html')
+            return render_template('/bill/create-bill.html', current_user=current_user)
         products = []
         for b in bill:
             prod = Product.query.filter_by(barcode=b).first()
@@ -342,13 +448,14 @@ def create_bill():
                 products.append(prod)
         customers = Customer.query.all()
         products_json = json.dumps([product.serialize() for product in products])
-        return render_template('/bill/create-bill.html', bill=bill, products=products, customers=customers, products_json=products_json)
+        return render_template('/bill/create-bill.html', bill=bill, products=products, customers=customers, products_json=products_json, current_user=current_user)
     except:
         print('ERROR WHILE CREATING BILL')
         flash(message="ERROR WHILE CREATING BILL", category="danger")
         return redirect('/')
 
 @app.route('/remove-product-from-bill', methods=['POST'])
+@login_required
 def remove_product_from_bill():
     data = request.get_json()
     print('delete:',data)
@@ -359,6 +466,7 @@ def remove_product_from_bill():
     return {'message':'successfully deleted'}
 
 @app.route('/save-bill', methods=['POST'])
+@login_required
 def save_bill():
     try:
         global current_order_id
@@ -373,7 +481,7 @@ def save_bill():
         productList = data['productList']
 
         customer = getCustomer(customerType, customerId, customerDetails)
-        print('CID:',customer.id, customer.name)
+        print('CID:',customer.id, customer.name)    
 
         order = Order(order_total=totalBill,customer_id=customer.id)
         db.session.add(order)
@@ -382,8 +490,10 @@ def save_bill():
         print('Order:',order.id)
 
         for prod in productList:
-            product = OrderItem(product_id=prod["id"], quantity=prod["quantity"], order_id=order.id)
-            db.session.add(product)
+            print()
+            print(prod)
+            item = OrderItem(product_id=prod["id"], quantity=prod["quantity"], order_id=order.id)
+            db.session.add(item)
         db.session.commit()
 
         return {'message':'successfully saved'}
@@ -392,6 +502,7 @@ def save_bill():
         return redirect('/create-bill')
 
 @app.route('/show-bill')
+@login_required
 def show_bill():
     try:
         global current_order_id
@@ -401,12 +512,13 @@ def show_bill():
         data = db.session.query(Product.name, OrderItem.quantity, Product.price_per_quantity).join(OrderItem).join(Order).filter(Order.id == order.id).group_by(Product.name, OrderItem.quantity, Product.price_per_quantity).all()
         print('data:', data)   
         
-        return render_template('bill/show-bill.html', order=order, customer=customer, ordered_products=data)
+        return render_template('bill/show-bill.html', order=order, customer=customer, ordered_products=data, current_user=current_user)
     except:
         flash('ERROR FETCHING BILL DETAILS', 'danger')
         return redirect('/create-bill')
 
 @app.route('/update-payment-method', methods=['POST'])
+@login_required
 def update_payment_method():
     try:
         global current_order_id
@@ -415,6 +527,7 @@ def update_payment_method():
         order.payment_method = data['payment_method']
         if data['payment_method'] == 'cash':
             order.payment_status = 'paid'
+            update_inventory(order.id)
             send_bill_email()
         db.session.commit()
         if data['payment_method'] == 'online':
@@ -424,10 +537,23 @@ def update_payment_method():
     except:
         flash('ERROR UPDATING PAYMENT DETAILS', 'danger')
         return redirect('/show-bill')
- 
-# @app.route('/payment-page')
-# def payment_page():
-#     return render_template('payments/payment.html')
+        
+def update_inventory(order_id):
+    try:
+        orderItem = OrderItem.query.filter_by(order_id = order_id).all()
+        print('\n', orderItem)
+        for item in orderItem:
+            product = Product.query.get(item.product_id)
+            quantity = product.quantity
+            product.quantity = quantity - item.quantity
+            print()
+            print(product.name)
+            print(f"{quantity} - {item.quantity} = {quantity - item.quantity}")
+            db.session.add(product)
+        db.session.commit() 
+        print()
+    except:
+        flash("COULD NOT UPDATE INTVENTORY", "danger")
 
 def getCustomer(customerType, customerId, customerDetails):
     try:
@@ -444,10 +570,12 @@ def getCustomer(customerType, customerId, customerDetails):
         return redirect('/save-bill')
 
 @app.route('/import-export')
+@login_required
 def import_export():
-    return render_template('data/import_export.html')
+    return render_template('data/import_export.html', current_user=current_user)
 
 @app.route('/upload', methods=['POST'])
+@login_required
 def upload_file():
     try:
         if 'file' not in request.files:
@@ -503,49 +631,44 @@ def create_barcode(name, cat_id):
 
 
 @app.route('/customers')
+@login_required
 def customers():
     try:
         customers = Customer.query.all()
-        return render_template('/customers/customers.html', customers=customers)
+        return render_template('/customers/customers.html', customers=customers, current_user=current_user)
     except:
         flash('ERROR GETTING CUSTOMERS', 'danger')
         return redirect('/')
 
 @app.route('/customers/<int:cust_id>/bills')
+@login_required
 def customer_bills(cust_id):
     try:
         orders = Order.query.filter_by(customer_id=cust_id).all()
-        return render_template('/customers/customer-bills.html', orders=orders)
+        print('ORD:', orders)
+        return render_template('/customers/customer-bills.html', orders=orders, current_user=current_user)
     except:
         flash('ERROR GETTING CUSTOMER BILLS', 'danger')
         return redirect('/customers')
 
 @app.route('/customers/<int:cust_id>/bills/order/<int:order_id>')
+@login_required
 def customer_order_bills(cust_id, order_id):
     try:
         customer = Customer.query.get(cust_id)
         order = Order.query.get(order_id)
         data = db.session.query(Product.name, OrderItem.quantity, Product.price_per_quantity).join(OrderItem).join(Order).filter(Order.id == order.id).group_by(Product.name, OrderItem.quantity, Product.price_per_quantity).all()
 
-        return render_template('/customers/customer-bills-order.html', customer=customer, order=order, ordered_products=data)
+        return render_template('/customers/customer-bills-order.html', customer=customer, order=order, ordered_products=data, current_user=current_user)
     except:
         flash('ERROR: COULD NOT FIND THE RESOURCE YOU ARE LOOKING FOR', 'danger')
         return redirect('/customers')
 
 
-@app.route('/bill')
-def bills():
-    global current_order_id
-    order = Order.query.get(current_order_id)
-    customer = Customer.query.get(order.customer_id)
-
-    data = db.session.query(Product.name, OrderItem.quantity, Product.price_per_quantity).join(OrderItem).join(Order).filter(Order.id == order.id).group_by(Product.name, OrderItem.quantity, Product.price_per_quantity).all()
-    
-    return render_template('email/bill.html', order=order, customer=customer, ordered_products=data)
-
 orderId = ''
 ORDER = {}
 @app.route('/payment', methods=['POST'])
+# @login_required
 def payment():
     try:
         global ORDER
@@ -564,13 +687,21 @@ def payment():
         return redirect('/show-bill')
 
 @app.route('/show-payment')
+@login_required
 def show_payment():
     global ORDER
-    return render_template('/payments/payment.html', order=ORDER)
+    global current_order_id
+    order = Order.query.get(current_order_id)
+    customer = Customer.query.get(order.customer_id)
+    data = db.session.query(Product.name, OrderItem.quantity, Product.price_per_quantity).join(OrderItem).join(Order).filter(Order.id == order.id).group_by(Product.name, OrderItem.quantity, Product.price_per_quantity).all()
+
+    return render_template('/payments/payment.html', rzp_order=ORDER, order=order, customer=customer, ordered_products=data, current_user=current_user)
 
 @app.route('/capture', methods=['POST'])
+# @login_required
 def capture():
     try:
+        global current_order_id
         payment_id = request.form['razorpay_payment_id']
         order_id = request.form['razorpay_order_id']
         signature = request.form['razorpay_signature']
@@ -585,9 +716,9 @@ def capture():
         verifySignature = client.utility.verify_payment_signature(params_dict)
         if verifySignature:
             update_payment_status()
+            update_inventory(current_order_id)
         # Capture the payment
         #client.payment.capture(payment_id, 1000)
-        # requests.get('http://127.0.0.1:5000/show-bill')
         return redirect('/show-bill')
     except:
         flash('ERROR VERIFYING PAYMENT', 'danger')
@@ -604,26 +735,144 @@ def update_payment_status():
     except:
         flash('ERROR UPDATING PAYMENT STATUS', 'danger')
         return redirect('/show-bill')
-
+   
 def send_bill_email():
     try:
         order = Order.query.get(current_order_id)
         customer = Customer.query.get(order.customer_id)
 
         data = db.session.query(Product.name, OrderItem.quantity, Product.price_per_quantity).join(OrderItem).join(Order).filter(Order.id == order.id).group_by(Product.name, OrderItem.quantity, Product.price_per_quantity).all()
-        
-        msg = Message('Hello from the other side!',
-                    sender='kelshiaman000@gmail.com',
-                    recipients=['amanmaha2001@gmail.com', customer.email])
-        msg.html =  render_template('email/bill.html', order=order, customer=customer, ordered_products=data)
-        flash(f"An email for order:#{str(order.id)} has been sent to {customer.email}", "info")
+
+        # Create a message
+        message = MIMEMultipart()
+        message['From'] = sender_email
+        message['To'] = customer.email
+        message['Subject'] = f"Order: #{order.id} | {customer.name} | T: Rs.{order.order_total}"
+        message.attach(MIMEText(render_template('email/bill.html', order=order, customer=customer, ordered_products=data), 'html'))
+
+        # Connect to the SMTP server
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()  # Upgrade the connection to a secure TLS connection
+        server.login(smtp_username, smtp_password)
+
+        # Send the email
+        # server.send_message(message)
+        server.sendmail(sender_email, message['To'], message.as_string())
+    
+        # Close the connection
+        server.quit()
+        # return True, "Email sent successfully!"
+        flash(f"An email has been sent to {customer.email}", 'success')
+    except Exception as e:
+        # return False, f"Error sending email: {str(e)}"
+        flash('Could not send email', 'danger')
+
+ 
+@app.route('/api/products', methods=['GET'])
+def api_products():
+    try:
+        orders = Order.query.all()
+
+        orderData = []
+
+        for order in orders:
+            orderedItems = OrderItem.query.filter_by(order_id = order.id).all()
+            products = set()
+            for item in orderedItems:
+                product = Product.query.get(item.product_id)
+                products.add(product.name)
+            if products:
+                orderData.append(list(products))
+
+        print(orderData)
+
+        return json.dumps(orderData)
     except:
-        flash("Something went wrong while sending an email, please check you email address", "warning")
+        return {'error':'Could not find products'}
+
+@app.route('/api/all-data', methods=['GET'])
+def getAllData():
+    try:
+        orders = Order.query.all()
+
+        orderData = []
+
+        for order in orders:
+            orderedItems = OrderItem.query.filter_by(order_id = order.id).all()
+            for item in orderedItems:
+                product = Product.query.get(item.product_id)
+                customer = Customer.query.get(order.customer_id)
+                data = {
+                    "order_id": order.id,
+                    "order_total": order.order_total,
+                    "order_date": order.order_date,
+                    "payment_method": order.payment_method,
+                    "payment_status": order.payment_status,
+                    "customer_name": customer.name,
+                    "customer_address": customer.address,
+                    "product_name": product.name,
+                    "product_price": product.price,
+                    "ordered_quantity": item.quantity,
+                }
+
+                orderData.append(data)
+
+        # print(f"\n\n{orderData}\n\n")
+        return orderData
+    except:
+        return {'error':'Could not find data'}
+
+@app.route('/basket_rule')
+def basket_rule():
+    return render_template('basket-rule/basket_form.html')
+
+@app.route('/basket_result', methods=['POST'])
+def basket_result():
+    search_item = request.form['item']
+    min_support = float(request.form['min_support'])
+    min_confidence = float(request.form['min_confidence'])
+    min_lift = float(request.form['min_lift'])
+    
+    url = "C:/Users/amanm/OneDrive/Desktop/bill/Market_Basket_Optimisation.csv"
+    dataset = pd.read_csv(url, encoding='latin1', header=None)
+    transactions = []
+    for i in range(0, 7501):
+        transactions.append([str(dataset.values[i,j]) for j in range(0, 20)])
+
+    rules = apriori(transactions=transactions, min_support=min_support, min_confidence=min_confidence,
+                    min_lift=min_lift, min_length=2, max_length=2)
+    results = list(rules)
+
+    final = []
+    for item in results:
+        pair = item[0]
+        a = [x for x in pair]
+        final.append(a)
+
+    output = []
+    for item in final:
+        if search_item in item:
+            item_index = item.index(search_item)
+            if item_index == 1:
+                output.append(item[0])
+            else:
+                output.append(item[1])
+    print(results)
+    print()
+    print(final)
+    print()
+    print(output)
+    return render_template('basket-rule/basket_result.html', search_item=search_item, output=output)
+
 
 """
 https://www.perplexity.ai/search/how-to-write-T4gKu1wEQaO.51aI2O_RJg?s=c#539e7856-c9dc-49ea-8d3e-a7431c7382e2
 
+OrderID | OrderItemID | ProdID | PName | 
+
 """
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
@@ -643,8 +892,8 @@ Packaged Foods
 Beverages
 Household Items
 Personal Care
-"""
-
+"""    
+                         
 '''
 Bill Form with Customer Information
 Bulk Data CSV
@@ -661,3 +910,6 @@ Search Box for Products, Customers
 # 4012001037141112
 # - Card Number: 4842 7930 0208 6571
 #{'FRUBAN0224988', 'EGGEGG0224512', 'METMEA0224833'}
+
+
+        

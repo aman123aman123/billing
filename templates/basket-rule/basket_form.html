@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block main %}
+<br><br><br><br>
+<h1>Apriori Algorithm GUI</h1>
+<form action="/basket_result" method="post">
+    <label for="item">Enter Item:</label>
+    <input type="text" id="item" name="item"><br><br>
+    <label for="min_support">Min Support:</label>
+    <input type="text" id="min_support" name="min_support" value="0.003"><br><br>
+    <label for="min_confidence">Min Confidence:</label>
+    <input type="text" id="min_confidence" name="min_confidence" value="0.15"><br><br>
+    <label for="min_lift">Min Lift:</label>
+    <input type="text" id="min_lift" name="min_lift" value="3"><br><br>
+    <input type="submit" value="Submit">
+</form>
+{% endblock %}

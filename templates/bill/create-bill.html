@@ -48,7 +48,7 @@
               {% if products %}
               <form id="billForm">
                 {% for prod in products %}
-                <div class="row">
+                <div class="row mb-3">
                   <div class="row align-items-center">
                     <div class="col-11">
                       <div class="form-floating">
@@ -107,6 +107,8 @@
                           name="quantity"
                           id="quantity{{prod.id}}"
                           value="1"
+                          min="1"
+                          max="{{prod.quantity}}"
                           oninput="getTotalPrice({{prod.id}})"
                         />
                         <!-- oninput="getPricePerQuantity({{prod.quantity}},{{prod.price}}, {{prod.id}})" -->
@@ -321,10 +323,12 @@
 
   if (form) {
     PRODUCTS = JSON.parse({{ products_json | tojson | safe }})
+    console.log('P:',PRODUCTS)
     if(PRODUCTS) {
       PRODUCTS.forEach(product => {
         // getPricePerQuantity(product.quantity, product.price, product.id)
-        getTotalPrice(product.id)
+        if(product.quantity > 0)
+          getTotalPrice(product.id)
       })
     }
   }
@@ -338,10 +342,10 @@
     }
     */
     function getTotalPrice(prodId){
-      console.log('running getTotalPrice')
+      //console.log('running getTotalPrice')
       const quantity = document.querySelector("#quantity"+prodId).value;
       const pricePerQuantity = document.querySelector("#pricePerQuantity"+prodId).value;
-      console.log('gTP:',quantity, pricePerQuantity);
+      //console.log('gTP:',quantity, pricePerQuantity);
       const totalPrice = document.querySelector("#totalPrice"+prodId);
       totalPrice.value = Number(quantity) * Number(pricePerQuantity);
       updateTotalBill(prodId)
@@ -351,10 +355,10 @@
       console.log('PL:',PriceList)
       sum = 0
       PriceList?.forEach(price => {
-        console.log("PV:",price.value)
+        //console.log("PV:",price.value)
         sum += Number(price.value)
       })
-      console.log('TotalBill', sum)
+      //console.log('TotalBill', sum)
       document.querySelector("#totalBill").value = sum;
     }
 
@@ -428,17 +432,18 @@
     }
 
     function saveBill() {
+      const billData = getBillData();
       fetch("/save-bill", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            customerType: getBillData().customerType,
-            customerId: getBillData().customerId,
-            customerDetails: getBillData().customerDetails,
-            totalBill: getBillData().totalBill,
-            productList: getBillData().productList,
+            customerType: billData.customerType,
+            customerId: billData.customerId,
+            customerDetails: billData.customerDetails,
+            totalBill: billData.totalBill,
+            productList: billData.productList,
         })
       })
       .then(response => {console.log(response);

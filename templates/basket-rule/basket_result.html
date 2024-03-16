@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block main %}
+<br><br><br><br>
+<h1>Apriori Results</h1>
+<p>Search Item: {{ search_item }}</p>
+{% if output %}
+    <p>Associated Items:</p>
+    <ul>
+        {% for item in output %}
+        <li>{{ item }}</li>
+        {% endfor %}
+    </ul>
+{% else %}
+<p>No associated items found</p>
+{% endif %}
+<a href="/basket_rule">Back to basket form</a>
+
+{% endblock %}

@@ -159,6 +159,7 @@
                     >Dashboard</a
                   >
                 </li>
+                {% if current_user.is_authenticated %}
                 <li class="nav-item">
                   <a class="nav-link" href="/create-bill">New Bill</a>
                 </li>
@@ -174,9 +175,19 @@
                 <li class="nav-item">
                   <a class="nav-link" href="/import-export">Import/Export</a>
                 </li>
-                <button type="button" class="btn btn-dark ms-3">
-                  Get Started
-                </button>
+                <li class="nav-item">
+                  <a class="nav-link" href="/basket_rule">Product Prediction</a>
+                </li>
+                {% endif %}
+                {% if not current_user.is_authenticated %}
+                <li class="nav-item">
+                  <a class="btn btn-dark ms-3" href="/login">Get Started</a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                  <a class="btn btn-outline-dark ms-3" href="/logout">Logout</a>
+                </li>
+                {% endif %}
               </ul>
             </div>
           </div>
